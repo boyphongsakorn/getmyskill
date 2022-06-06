@@ -5,140 +5,259 @@ const app = express();
 const port = process.env.PORT || 3000;*/
 const fs = require('fs');
 
+//setup async startup
+async function startup() {
+    let arrayl = [];
+    let arraycount = [];
+    let allofdep = [];
+    let countprecent = [];
+    let allofdepcount = [];
+    let countprecent2 = [];
+    let users = ['boyphongsakorn', 'quad-b']
+    //loop users
+    for (let b = 0; b < users.length; b++) {
+        console.log(users[b]);
+        const fromuser = await fetch('https://api.github.com/users/'+users[b]+'/repos?per_page=100');
+        const fromuserjson = await fromuser.json();
+        for (let i = 0; i < fromuserjson.length; i++) {
+            //console.log(fromuserjson[i].language);
+            //add language to array
+            if (fromuserjson[i].language != null) {
+                arrayl.push(fromuserjson[i].language);
+            }
+
+            try {
+                const pack = await fetch('https://raw.githubusercontent.com/'+users[b]+'/' + fromuserjson[i].name + '/' + fromuserjson[i].default_branch + '/package.json')
+                const packjson = await pack.json();
+                if (packjson.dependencies != null) {
+                    for (let key in packjson.dependencies) {
+                        //console.log(key);
+                        //add name of dependencies to array
+                        allofdep.push(key);
+                    }
+                }
+                //get name of devDependencies
+                if (packjson.devDependencies != null) {
+                    for (let key in packjson.devDependencies) {
+                        //console.log(key);
+                        //add name of devDependencies to array
+                        allofdep.push(key);
+                    }
+                }
+            } catch (error) {
+                console.log(error);
+            }
+
+        }
+        //order arrayl
+        arrayl.sort();
+        //count duplicate language in arrayl and add to arraycount like language:count
+        for (let i = 0; i < arrayl.length; i++) {
+            let count = 0;
+            for (let j = 0; j < arrayl.length; j++) {
+                if (arrayl[i] == arrayl[j]) {
+                    count++;
+                }
+            }
+            //if arrayl[i] is not in arraycount.language, add it
+            if (!arraycount.some(e => e.language == arrayl[i])) {
+
+                arraycount.push({
+                    language: arrayl[i],
+                    count: count
+                });
+            }
+        }
+        //order arraycount by count
+        arraycount.sort((a, b) => b.count - a.count);
+        console.log(arraycount);
+        //calculate precent of each language
+        for (let i = 0; i < arraycount.length; i++) {
+            let precent = (arraycount[i].count / fromuserjson.length) * 100;
+            //get 2 point of precent
+            precent = precent.toFixed(2);
+            countprecent.push({
+                language: arraycount[i].language,
+                precent: precent
+            });
+        }
+        console.log(countprecent);
+        //console.log(allofdep);
+        //count duplicate name of dependencies in allofdep and add to allofdepcount like name:count
+        for (let i = 0; i < allofdep.length; i++) {
+            let count = 0;
+            for (let j = 0; j < allofdep.length; j++) {
+                if (allofdep[i] == allofdep[j]) {
+                    count++;
+                }
+            }
+            //if allofdep[i] is not in allofdepcount.name, add it
+            if (!allofdepcount.some(e => e.name == allofdep[i])) {
+
+                allofdepcount.push({
+                    name: allofdep[i],
+                    count: count
+                });
+            }
+        }
+        //order allofdepcount by count
+        allofdepcount.sort((a, b) => b.count - a.count);
+        console.log(allofdepcount);
+        //calculate precent of each name of dependencies
+        for (let i = 0; i < allofdepcount.length; i++) {
+            let precent = (allofdepcount[i].count / allofdep.length) * 100;
+            //get 2 point of precent
+            precent = precent.toFixed(2);
+            countprecent2.push({
+                name: allofdepcount[i].name,
+                precent: precent
+            });
+        }
+        console.log(countprecent2);
+    }
+
+    fs.writeFileSync('alldev.json', JSON.stringify(allofdepcount));
+    fs.writeFileSync('alllang.json', JSON.stringify(arraycount));
+    fs.writeFileSync('langprecent.json', JSON.stringify(countprecent));
+    fs.writeFileSync('devprecent.json', JSON.stringify(countprecent2));
+}
+
+startup();
+
 //app.use(express.static('public'));
 
 //app.get('/', async (req, res) => {
-    fetch('https://api.github.com/users/boyphongsakorn/repos?per_page=100')
-        .then(res => res.json())
-        .then(async json => {
-            let arrayl = [];
-            let arraycount = [];
-            let allofdep = [];
-            //console all json[x].language
-            for (let i = 0; i < json.length; i++) {
-                //console.log(json[i].language);
-                //add language to array
-                if (json[i].language != null) {
-                    arrayl.push(json[i].language);
-                }
-
-                //if (req.query.package == "true") {
-                    await fetch('https://raw.githubusercontent.com/boyphongsakorn/' + json[i].name + '/' + json[i].default_branch + '/package.json')
-                        .then(res => res.json())
-                        .then(json => {
-                            //console.log(json.dependencies);
-                            //get name of dependencies
-                            if (json.dependencies != null) {
-                                for (let key in json.dependencies) {
-                                    //console.log(key);
-                                    //add name of dependencies to array
-                                    allofdep.push(key);
-                                }
-                            }
-                            //get name of devDependencies
-                            if (json.devDependencies != null) {
-                                for (let key in json.devDependencies) {
-                                    //console.log(key);
-                                    //add name of devDependencies to array
-                                    allofdep.push(key);
-                                }
-                            }
-                        })
-                        .catch(err => {
-                            //console.log(err);
-                        })
-                //}
+/*fetch('https://api.github.com/users/boyphongsakorn/repos?per_page=100')
+    .then(res => res.json())
+    .then(async json => {
+        let arrayl = [];
+        let arraycount = [];
+        let allofdep = [];
+        //console all json[x].language
+        for (let i = 0; i < json.length; i++) {
+            //console.log(json[i].language);
+            //add language to array
+            if (json[i].language != null) {
+                arrayl.push(json[i].language);
             }
-            //console.log(arrayl);
-            //order arrayl
-            arrayl.sort();
-            //count duplicate language in arrayl and add to arraycount like language:count
-            for (let i = 0; i < arrayl.length; i++) {
-                let count = 0;
-                for (let j = 0; j < arrayl.length; j++) {
-                    if (arrayl[i] == arrayl[j]) {
-                        count++;
+
+            //if (req.query.package == "true") {
+            await fetch('https://raw.githubusercontent.com/boyphongsakorn/' + json[i].name + '/' + json[i].default_branch + '/package.json')
+                .then(res => res.json())
+                .then(json => {
+                    //console.log(json.dependencies);
+                    //get name of dependencies
+                    if (json.dependencies != null) {
+                        for (let key in json.dependencies) {
+                            //console.log(key);
+                            //add name of dependencies to array
+                            allofdep.push(key);
+                        }
                     }
-                }
-                //if arrayl[i] is not in arraycount.language, add it
-                if (!arraycount.some(e => e.language == arrayl[i])) {
-
-                    arraycount.push({
-                        language: arrayl[i],
-                        count: count
-                    });
+                    //get name of devDependencies
+                    if (json.devDependencies != null) {
+                        for (let key in json.devDependencies) {
+                            //console.log(key);
+                            //add name of devDependencies to array
+                            allofdep.push(key);
+                        }
+                    }
+                })
+                .catch(err => {
+                    //console.log(err);
+                })
+            //}
+        }
+        //console.log(arrayl);
+        //order arrayl
+        arrayl.sort();
+        //count duplicate language in arrayl and add to arraycount like language:count
+        for (let i = 0; i < arrayl.length; i++) {
+            let count = 0;
+            for (let j = 0; j < arrayl.length; j++) {
+                if (arrayl[i] == arrayl[j]) {
+                    count++;
                 }
             }
-            //order arraycount by count
-            arraycount.sort((a, b) => b.count - a.count);
-            console.log(arraycount);
-            let countprecent = [];
-            //calculate precent of each language
-            for (let i = 0; i < arraycount.length; i++) {
-                let precent = (arraycount[i].count / json.length) * 100;
-                //get 2 point of precent
-                precent = precent.toFixed(2);
-                countprecent.push({
-                    language: arraycount[i].language,
-                    precent: precent
+            //if arrayl[i] is not in arraycount.language, add it
+            if (!arraycount.some(e => e.language == arrayl[i])) {
+
+                arraycount.push({
+                    language: arrayl[i],
+                    count: count
                 });
             }
-            console.log(countprecent);
-            //console.log(allofdep);
-            let allofdepcount = [];
-            //count duplicate name of dependencies in allofdep and add to allofdepcount like name:count
-            for (let i = 0; i < allofdep.length; i++) {
-                let count = 0;
-                for (let j = 0; j < allofdep.length; j++) {
-                    if (allofdep[i] == allofdep[j]) {
-                        count++;
-                    }
-                }
-                //if allofdep[i] is not in allofdepcount.name, add it
-                if (!allofdepcount.some(e => e.name == allofdep[i])) {
-
-                    allofdepcount.push({
-                        name: allofdep[i],
-                        count: count
-                    });
+        }
+        //order arraycount by count
+        arraycount.sort((a, b) => b.count - a.count);
+        console.log(arraycount);
+        let countprecent = [];
+        //calculate precent of each language
+        for (let i = 0; i < arraycount.length; i++) {
+            let precent = (arraycount[i].count / json.length) * 100;
+            //get 2 point of precent
+            precent = precent.toFixed(2);
+            countprecent.push({
+                language: arraycount[i].language,
+                precent: precent
+            });
+        }
+        console.log(countprecent);
+        //console.log(allofdep);
+        let allofdepcount = [];
+        //count duplicate name of dependencies in allofdep and add to allofdepcount like name:count
+        for (let i = 0; i < allofdep.length; i++) {
+            let count = 0;
+            for (let j = 0; j < allofdep.length; j++) {
+                if (allofdep[i] == allofdep[j]) {
+                    count++;
                 }
             }
-            //order allofdepcount by count
-            allofdepcount.sort((a, b) => b.count - a.count);
-            console.log(allofdepcount);
-            let countprecent2 = [];
-            //calculate precent of each name of dependencies
-            for (let i = 0; i < allofdepcount.length; i++) {
-                let precent = (allofdepcount[i].count / allofdep.length) * 100;
-                //get 2 point of precent
-                precent = precent.toFixed(2);
-                countprecent2.push({
-                    name: allofdepcount[i].name,
-                    precent: precent
+            //if allofdep[i] is not in allofdepcount.name, add it
+            if (!allofdepcount.some(e => e.name == allofdep[i])) {
+
+                allofdepcount.push({
+                    name: allofdep[i],
+                    count: count
                 });
             }
-            console.log(countprecent2);
-            //if req.query.package is not null, return json of package.json of that package
-            /*if (req.query.package != null) {
-                if (req.query.precent == 'true') {
-                    res.send(countprecent2);
-                } else {
-                    res.send(allofdepcount);
-                }
+        }
+        //order allofdepcount by count
+        allofdepcount.sort((a, b) => b.count - a.count);
+        console.log(allofdepcount);
+        let countprecent2 = [];
+        //calculate precent of each name of dependencies
+        for (let i = 0; i < allofdepcount.length; i++) {
+            let precent = (allofdepcount[i].count / allofdep.length) * 100;
+            //get 2 point of precent
+            precent = precent.toFixed(2);
+            countprecent2.push({
+                name: allofdepcount[i].name,
+                precent: precent
+            });
+        }
+        console.log(countprecent2);
+        //if req.query.package is not null, return json of package.json of that package
+        /*if (req.query.package != null) {
+            if (req.query.precent == 'true') {
+                res.send(countprecent2);
             } else {
-                if (req.query.precent == 'true') {
-                    res.send(countprecent);
-                } else {
-                    res.send(arraycount);
-                }
-            }*/
-            fs.writeFileSync('alldev.json', JSON.stringify(allofdepcount));
-            fs.writeFileSync('alllang.json', JSON.stringify(arraycount));
-            fs.writeFileSync('langprecent.json', JSON.stringify(countprecent));
-            fs.writeFileSync('devprecent.json', JSON.stringify(countprecent2));
-        })
+                res.send(allofdepcount);
+            }
+        } else {
+            if (req.query.precent == 'true') {
+                res.send(countprecent);
+            } else {
+                res.send(arraycount);
+            }
+        }*/
+/*fs.writeFileSync('alldev.json', JSON.stringify(allofdepcount));
+fs.writeFileSync('alllang.json', JSON.stringify(arraycount));
+fs.writeFileSync('langprecent.json', JSON.stringify(countprecent));
+fs.writeFileSync('devprecent.json', JSON.stringify(countprecent2));
+})
 /*});
 
 app.listen(port, () => {
-    console.log(`Example app listening at http://localhost:${port}`);
+console.log(`Example app listening at http://localhost:${port}`);
 });*/
